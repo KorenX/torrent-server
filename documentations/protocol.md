@@ -13,12 +13,16 @@ client                      server
    |<--------n files----------|\
    |-----------ack----------->| repeat m times
    |                          |/
+   |<------finish files-------|
+   |                          |
    |                          |
    |                          |
    |-------request file------>|
    |<---------n ips-----------|\
    |-----------ack----------->| repeat m times
    |                          |/
+   |<-------finish ips--------|
+   |                          |
    |                          |
    |                          |
    |----------thanks--------->|
