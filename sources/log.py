@@ -1,2 +1,2 @@
 def log(msg):
-    pass
+    print(msg)

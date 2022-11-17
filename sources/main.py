@@ -1,7 +1,12 @@
-from torrent_server import TorrentServer
+from TorrentServer import TorrentServer
+
+SELF_IP = "0.0.0.0"
+MAIN_PORT = 8989
 
 def main():
-    pass
+    print("starting server")
+    srv = TorrentServer(SELF_IP, MAIN_PORT)
+    srv.handle_messages()
 
 
 if __name__ == "__main__":
