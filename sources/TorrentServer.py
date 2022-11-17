@@ -1,7 +1,7 @@
 import socket
 from Exceptions import *
 from ServerMessages import *
-from log import log
+from Log import log
 from ServerDB import *
 import select
 
