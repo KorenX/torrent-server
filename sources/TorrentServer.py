@@ -1,3 +1,4 @@
+from email.errors import NonPrintableDefect
 import socket
 from Exceptions import *
 from ServerMessages import *
@@ -13,13 +14,10 @@ class TorrentServer():
         self.db = ServerDBManager()
 
     def handle_messages(self):
-        try:
-            while True:
-                ready = select.select([self.socket], [], [], 1)
-                if ready[0]:
-                    self._handle_message()
-        except Exception as e:
-            log(e)
+        while True:
+            ready = select.select([self.socket], [], [], 1)
+            if ready[0]:
+                self._handle_message()
 
     def _handle_message(self):
         packet, src = self.socket.recvfrom(self.PACKET_MAX_SIZE)
@@ -39,8 +37,10 @@ class TorrentServer():
                     self.handle_thanks(msg, src)
                 case _:
                     raise IllegalMessageError(msg.message_type, self.users[src])
+        except (IllegalMessageError, IllegalMessageSizeError) as e:
+            log(str(e))
         finally:
-            self.clear_unused()
+            self._clear_unused()
     
     def handle_files_list(self, msg: ServerRequestMessage, src):
         self._add_user(src)
@@ -48,8 +48,7 @@ class TorrentServer():
         if current_user.state != ServerMessageTypes.FILES_LIST and current_user.state != ServerMessageTypes.FILES_CHUNK:
             raise IllegalMessageError(msg.message_type, current_user)
 
-        response = self._create_files_info_payload(current_user)
-        self.socket.sendto(response, src)
+        self.send_files_list_response(current_user, src)
 
     def handle_files_ack(self, msg: ServerRequestMessage, src):
         current_user = self.users[src]
@@ -59,8 +58,7 @@ class TorrentServer():
         ack_msg = AckMessage(msg)
         current_user.last_file_id = ack_msg.ack_index
 
-        response = self._create_files_info_payload(current_user)
-        self.socket.sendto(response, src)
+        self.send_files_list_response(current_user, src)
 
     def handle_peers_list(self, msg: ServerRequestMessage, src):
         self._add_user(src)
@@ -92,13 +90,19 @@ class TorrentServer():
         
         self._remove_user(src)
 
+    def send_files_list_response(self, user: UserStruct, src) -> None:
+        payload = self._create_files_info_payload(user)
+        packet = bytes([user.state.value]) + payload
+        self.socket.sendto(packet, src)
+
     def _clear_unused(self) -> None:
         to_remove = []
-        for user in self.users:
-            if time.time() - user.last_used < self.UNUSED_TIME_INTERVAL:
+        for user in self.users.values():
+            if time.time() - user.last_used > self.UNUSED_TIME_INTERVAL:
                 to_remove.append(user.user_id)
         
         for user_id in to_remove:
+            log(f"user removed: {user_id}")
             self._remove_user(user_id)
     
     def _add_user(self, user_id) -> None:
@@ -110,14 +114,14 @@ class TorrentServer():
         try:
             self.users.pop(user_id)
         except KeyError as e:
-            pass
+            log(e)
     
     def _create_files_info_payload(self, user: UserStruct) -> bytes:
         files = self.db.get_available_files()
         if len(files) <= user.last_file_id:
             user.state = ServerMessageTypes.FILES_FIN
-            return self._create_finish_message(ServerMessageTypes.FILES_FIN)
-        
+            return bytes()
+
         user.last_file_id = max(0, user.last_file_id)
 
         payload = bytes()
@@ -134,7 +138,7 @@ class TorrentServer():
         peers_info = self.db.get_available_peers(user.wanted_file)
         if len(peers_info) <= user.last_peer_id:
             user.state = ServerMessageTypes.PEERS_FIN
-            return self._create_finish_message(ServerMessageTypes.PEERS_FIN)
+            return bytes()
         
         user.last_peer_id = max(0, user.last_peer_id)
 
@@ -148,9 +152,6 @@ class TorrentServer():
         user.state = ServerMessageTypes.PEERS_CHUNK
         return payload
     
-    def _create_finish_message(self, message_type) -> bytes:
-        return bytes([message_type])
-
     PACKET_MAX_SIZE = 128
     UNUSED_TIME_INTERVAL = 60 #seconds
     MAX_FILES_INFO_IN_MESSAGE = 8

@@ -1,7 +1,7 @@
 from TorrentServer import TorrentServer
 
 SELF_IP = "0.0.0.0"
-MAIN_PORT = 8989
+MAIN_PORT = 9001
 
 def main():
     print("starting server")

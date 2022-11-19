@@ -16,7 +16,7 @@ class ServerMessageTypes(enum.Enum):
 
 class ServerRequestMessage():
     def __init__(self, message: bytes) -> None:
-        self.message_type = ord(message[0])
+        self.message_type = ServerMessageTypes(message[0])
         self.payload = message[1:]
 
 class FilesListMessage():
@@ -29,7 +29,7 @@ class AckMessage():
         if len(self.base_message.payload) < self.CHUNK_ACK_INDEX_SIZE:
             raise IllegalMessageSizeError(message.message_type, len(message))
 
-        self.ack_index = struct.unpack("I", self.base_message.payload[:self.CHUNK_ACK_INDEX_SIZE])
+        self.ack_index = struct.unpack("I", self.base_message.payload[:self.CHUNK_ACK_INDEX_SIZE])[0]
     
     CHUNK_ACK_INDEX_SIZE = 4
 
@@ -39,7 +39,7 @@ class PeersListMessage():
         if len(self.base_message.payload) < ServerDB.FileInfo.FILE_ID_MIN_LENGTH:
             raise IllegalMessageSizeError(message.message_type, len(message))
 
-        self.file_id = struct.unpack(ServerDB.FileInfo.FILE_ID_FORMAT, self.base_message.payload[:ServerDB.FileInfo.FILE_ID_MIN_LENGTH])
+        self.file_id = struct.unpack(ServerDB.FileInfo.FILE_ID_FORMAT, self.base_message.payload[:ServerDB.FileInfo.FILE_ID_MIN_LENGTH])[0]
 
 class ThanksMessage():
     def __init__(self, message: ServerRequestMessage) -> None:
