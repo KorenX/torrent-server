@@ -121,6 +121,9 @@ class TorrentServer():
         user.last_file_id = max(0, user.last_file_id)
 
         payload = bytes()
+        payload += struct.pack("I", len(files[user.last_file_id:][:self.MAX_FILES_INFO_IN_MESSAGE]))
+        payload += struct.pack("I", user.last_file_id)
+
         for finfo in files[user.last_file_id:][:self.MAX_FILES_INFO_IN_MESSAGE]:
             payload += finfo.serialize()
         
@@ -136,9 +139,12 @@ class TorrentServer():
         user.last_peer_id = max(0, user.last_peer_id)
 
         payload = bytes()
+        payload += struct.pack("I", len(peers_info[user.last_peer_id:][:self.MAX_PEERS_INFO_IN_MESSAGE]))
+        payload += struct.pack("I", user.last_peer_id)
+
         for pinfo in peers_info[user.last_peer_id:][:self.MAX_PEERS_INFO_IN_MESSAGE]:
             payload += pinfo.serialize()
-        
+
         user.state = ServerMessageTypes.PEERS_CHUNK
         return payload
     
@@ -148,4 +154,4 @@ class TorrentServer():
     PACKET_MAX_SIZE = 128
     UNUSED_TIME_INTERVAL = 60 #seconds
     MAX_FILES_INFO_IN_MESSAGE = 8
-    MAX_PEERS_INFO_IN_MESSAGE = 8
+    MAX_PEERS_INFO_IN_MESSAGE = 128
