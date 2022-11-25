@@ -34,4 +34,4 @@ class ServerDBManager():
         return [FileInfo(1, "name_placeholder", "desc_placeholder")]
 
     def get_available_peers(self, file_id: int) -> list:
-        return [PeerInfo(1)]
+        return [PeerInfo(0x12345678)]

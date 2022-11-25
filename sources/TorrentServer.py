@@ -18,6 +18,8 @@ class TorrentServer():
             ready = select.select([self.socket], [], [], 1)
             if ready[0]:
                 self._handle_message()
+            else:
+                self._clear_unused()
 
     def _handle_message(self):
         packet, src = self.socket.recvfrom(self.PACKET_MAX_SIZE)
@@ -39,8 +41,6 @@ class TorrentServer():
                     raise IllegalMessageError(msg.message_type, self.users[src])
         except (IllegalMessageError, IllegalMessageSizeError) as e:
             log(str(e))
-        finally:
-            self._clear_unused()
     
     def handle_files_list(self, msg: ServerRequestMessage, src):
         self._add_user(src)
@@ -48,7 +48,7 @@ class TorrentServer():
         if current_user.state != ServerMessageTypes.FILES_LIST and current_user.state != ServerMessageTypes.FILES_CHUNK:
             raise IllegalMessageError(msg.message_type, current_user)
 
-        self.send_files_list_response(current_user, src)
+        self._send_files_list_response(current_user, src)
 
     def handle_files_ack(self, msg: ServerRequestMessage, src):
         current_user = self.users[src]
@@ -58,7 +58,7 @@ class TorrentServer():
         ack_msg = AckMessage(msg)
         current_user.last_file_id = ack_msg.ack_index
 
-        self.send_files_list_response(current_user, src)
+        self._send_files_list_response(current_user, src)
 
     def handle_peers_list(self, msg: ServerRequestMessage, src):
         self._add_user(src)
@@ -69,8 +69,7 @@ class TorrentServer():
         peers_msg = PeersListMessage(msg)
         current_user.wanted_file = peers_msg.file_id
 
-        response = self._create_peers_info_payload(current_user)
-        self.socket.sendto(response, src)
+        self._send_peers_list_response(current_user, src)
 
     def handle_peers_ack(self, msg: ServerRequestMessage, src):
         current_user = self.users[src]
@@ -81,7 +80,7 @@ class TorrentServer():
         current_user.last_peer_id = ack_msg.ack_index
 
         response = self._create_peers_info_payload(current_user)
-        self.socket.sendto(response, src)
+        self._send_peers_list_response(current_user, src)
     
     def handle_thanks(self, msg: ServerRequestMessage, src):
         current_user = self.users[src]
@@ -90,8 +89,13 @@ class TorrentServer():
         
         self._remove_user(src)
 
-    def send_files_list_response(self, user: UserStruct, src) -> None:
+    def _send_files_list_response(self, user: UserStruct, src) -> None:
         payload = self._create_files_info_payload(user)
+        packet = bytes([user.state.value]) + payload
+        self.socket.sendto(packet, src)
+
+    def _send_peers_list_response(self, user: UserStruct, src) -> None:
+        payload = self._create_peers_info_payload(user)
         packet = bytes([user.state.value]) + payload
         self.socket.sendto(packet, src)
 
