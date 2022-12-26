@@ -4,7 +4,7 @@ When a client wants to aquire a file, it connects to the main server and request
 Each file has a FileID, and a Filename, with an optional description.
 The user requests a certain FileID, and the main server responds with a list of possible peer IDs which hold the file.
 
-File Request Protocol:
+File Info Protocol:
 
 client                      server
    |                          |
@@ -26,3 +26,12 @@ client                      server
    |                          |
    |----------thanks--------->|
    |                          |
+
+
+Register To Server:
+
+client                      server
+   |                          |
+   |---------register-------->|
+   |<--------response---------|
+   |----------thanks--------->|

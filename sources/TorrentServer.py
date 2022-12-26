@@ -13,6 +13,10 @@ class TorrentServer():
         self.users = {}
         self.db = ServerDBManager()
 
+        #adding default values:
+        self.db.add_file(FileInfo(1, "name_placeholder", "desc_placeholder"))
+        self.db.add_client(PeerInfo(0x7f00001, 23523))
+
     def handle_messages(self):
         while True:
             ready = select.select([self.socket], [], [], 1)
@@ -159,4 +163,4 @@ class TorrentServer():
     PACKET_MAX_SIZE = 128
     UNUSED_TIME_INTERVAL = 60 #seconds
     MAX_FILES_INFO_IN_MESSAGE = 8
-    MAX_PEERS_INFO_IN_MESSAGE = 128
+    MAX_PEERS_INFO_IN_MESSAGE = 64

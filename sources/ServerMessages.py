@@ -13,6 +13,8 @@ class ServerMessageTypes(enum.Enum):
     PEERS_ACK = enum.auto()
     PEERS_FIN = enum.auto()
     THANKS = enum.auto()
+    REGISTER = enum.auto()
+    REGISTER_ACK = enum.auto()
 
 class ServerRequestMessage():
     def __init__(self, message: bytes) -> None:

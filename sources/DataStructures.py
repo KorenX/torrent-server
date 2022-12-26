@@ -30,11 +30,12 @@ class FileInfo():
     FILE_ID_MIN_LENGTH = 4
 
 class PeerInfo():
-    def __init__(self, peer_ip: int) -> None:
+    def __init__(self, peer_ip: int, peer_port : int) -> None:
         self.peer_ip = peer_ip
+        self.peer_port = peer_port
 
     def __str__(self) -> str:
-        return inet_ntoa(struct.pack("!I", self.peer_ip))
+        return f'{inet_ntoa(struct.pack("!I", self.peer_ip))}:{self.peer_port}'
     
     def serialize(self) -> bytes:
-        return struct.pack("I", self.peer_ip)
+        return struct.pack("IH", self.peer_ip, self.peer_port)
