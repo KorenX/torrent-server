@@ -33,5 +33,5 @@ Register To Server:
 client                      server
    |                          |
    |---------register-------->|
-   |<--------response---------|
+   |<----------ack------------|
    |----------thanks--------->|
