@@ -16,6 +16,10 @@ class ServerMessageTypes(enum.Enum):
     REGISTER = enum.auto()
     REGISTER_ACK = enum.auto()
 
+class ServerFlows(enum.Enum):
+    FILES_AND_PEERS = 1
+    REGISTER_CLIENT = enum.auto()
+
 class ServerRequestMessage():
     def __init__(self, message: bytes) -> None:
         self.message_type = ServerMessageTypes(message[0])
@@ -46,3 +50,15 @@ class PeersListMessage():
 class ThanksMessage():
     def __init__(self, message: ServerRequestMessage) -> None:
         self.base_message = message
+
+class RegisterMessage():
+    def __init__(self, message: ServerRequestMessage) -> None:
+        self.base_message = message
+        if len(self.base_message.payload) < self.PAYLOAD_SIZE:
+            raise IllegalMessageSizeError(message.message_type, len(message))
+
+        self.client_ip, self.client_port = struct.unpack("IH", self.base_message.payload[:self.PAYLOAD_SIZE])
+    
+    IP_ADDRESS_SIZE = 4
+    PORT_ADDRESS_SIZE = 2
+    PAYLOAD_SIZE = IP_ADDRESS_SIZE + PORT_ADDRESS_SIZE

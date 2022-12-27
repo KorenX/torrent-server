@@ -41,13 +41,15 @@ class TorrentServer():
                     self.handle_peers_ack(msg, src)
                 case ServerMessageTypes.THANKS:
                     self.handle_thanks(msg, src)
+                case ServerMessageTypes.REGISTER:
+                    self.handle_register(msg, src)
                 case _:
                     raise IllegalMessageError(msg.message_type, self.users[src])
         except (IllegalMessageError, IllegalMessageSizeError) as e:
             log(str(e))
     
     def handle_files_list(self, msg: ServerRequestMessage, src):
-        self._add_user(src)
+        self._add_user(src, ServerFlows.FILES_AND_PEERS)
         current_user = self.users[src]
         if current_user.state != ServerMessageTypes.FILES_LIST and current_user.state != ServerMessageTypes.FILES_CHUNK:
             raise IllegalMessageError(msg.message_type, current_user)
@@ -65,7 +67,7 @@ class TorrentServer():
         self._send_files_list_response(current_user, src)
 
     def handle_peers_list(self, msg: ServerRequestMessage, src):
-        self._add_user(src)
+        self._add_user(src, ServerFlows.FILES_AND_PEERS)
         current_user = self.users[src]
         if current_user.state != ServerMessageTypes.FILES_FIN and current_user.state != ServerMessageTypes.PEERS_CHUNK:
             raise IllegalMessageError(msg.message_type, current_user)
@@ -88,10 +90,21 @@ class TorrentServer():
     
     def handle_thanks(self, msg: ServerRequestMessage, src):
         current_user = self.users[src]
-        if current_user.state != ServerMessageTypes.FILES_FIN and current_user.state != ServerMessageTypes.PEERS_FIN:
+        if current_user.state != ServerMessageTypes.FILES_FIN and current_user.state != ServerMessageTypes.PEERS_FIN and current_user.state != ServerMessageTypes.REGISTER_ACK:
             raise IllegalMessageError(msg.message_type, current_user)
         
         self._remove_user(src)
+
+    def handle_register(self, msg: ServerRequestMessage, src):
+        self._add_user(src, ServerFlows.REGISTER_CLIENT)
+        current_user = self.users[src]
+        if current_user.state != ServerMessageTypes.REGISTER:
+            raise IllegalMessageError(msg.message_type, current_user)
+
+        request_msg = RegisterMessage(msg)
+        self.db.add_client(PeerInfo(request_msg.client_ip, request_msg.client_port))
+
+        self._send_register_ack(current_user, src)
 
     def _send_files_list_response(self, user: UserStruct, src) -> None:
         payload = self._create_files_info_payload(user)
@@ -102,6 +115,11 @@ class TorrentServer():
         payload = self._create_peers_info_payload(user)
         packet = bytes([user.state.value]) + payload
         self.socket.sendto(packet, src)
+    
+    def _send_register_ack(self, user: UserStruct, src) -> None:
+        user.state = ServerMessageTypes.REGISTER_ACK
+        packet = bytes([user.state.value])
+        self.socket.sendto(packet, src)
 
     def _clear_unused(self) -> None:
         to_remove = []
@@ -110,16 +128,21 @@ class TorrentServer():
                 to_remove.append(user.user_id)
         
         for user_id in to_remove:
-            log(f"user removed: {user_id}")
             self._remove_user(user_id)
     
-    def _add_user(self, user_id) -> None:
+    def _add_user(self, user_id, server_flow : ServerFlows) -> None:
         if user_id not in self.users.keys():
             log(f"new user connected, id: {user_id} time: {time.time()}")
-            self.users[user_id] = UserStruct(user_id, ServerMessageTypes.FILES_LIST)
+            if server_flow == ServerFlows.FILES_AND_PEERS:
+                self.users[user_id] = UserStruct(user_id, ServerMessageTypes.FILES_LIST)
+            elif server_flow == ServerFlows.REGISTER_CLIENT:
+                self.users[user_id] = UserStruct(user_id, ServerMessageTypes.REGISTER)
+            else:
+                log(f"couldn't add user, bad server flow {server_flow}")
 
     def _remove_user(self, user_id) -> None:
         try:
+            log(f"removing user: {user_id}")
             self.users.pop(user_id)
         except KeyError as e:
             log(e)
