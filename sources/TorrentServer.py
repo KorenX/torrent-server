@@ -1,14 +1,14 @@
-from email.errors import NonPrintableDefect
 import socket
 from Exceptions import *
 from ServerMessages import *
 from Log import log
 from ServerDB import *
 import select
+import time
 
 class TorrentServer():
     def __init__(self, src_ip: str, src_port: int) -> None:
-        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM, proto=socket.IPPROTO_UDP)
         self.socket.bind((src_ip, src_port))
         self.users = {}
         self.db = ServerDBManager()
